@@ -1,8 +1,12 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import requests
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 
 BASE = "https://restcountries.com/v3.1"
+TIMEOUT = 10
+MAX_WORKERS = 6
 
 
 class Country:
@@ -53,10 +57,10 @@ class Country:
 
 class CountryAPI:
     def by_name(self, name: str) -> Country | None:
-        url = f"{BASE}/name/{name}"
+        url = f"{BASE}/name/{name}?fullText=true"
 
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=TIMEOUT)
             response.raise_for_status()
             return Country(response.json()[0])
         except Timeout:
@@ -69,11 +73,31 @@ class CountryAPI:
 
         return None
 
+    def by_names(self, names: list[str]) -> dict[str, Country]:
+        countries = {}
+
+        print(f"\nConcurrencia: {MAX_WORKERS} hilos")
+        print(f"Consultando {len(names)} paises al mismo tiempo...\n")
+
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = {
+                executor.submit(self.by_name, name): name
+                for name in names
+            }
+
+            for future in as_completed(futures):
+                name = futures[future]
+                country = future.result()
+                if country is not None:
+                    countries[name] = country
+
+        return countries
+
     def by_region(self, region: str) -> list[Country]:
         url = f"{BASE}/region/{region}"
 
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=TIMEOUT)
             response.raise_for_status()
             data = response.json()
             return [Country(pais) for pais in data]

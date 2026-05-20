@@ -3,9 +3,10 @@ from country import Country, CountryAPI
 
 def cargar_paises(api: CountryAPI, elecciones: dict[str, str]) -> list[Country]:
     paises = []
+    resultados = api.by_names(list(elecciones.values()))
 
     for letra, pais_nombre in elecciones.items():
-        pais = api.by_name(pais_nombre)
+        pais = resultados.get(pais_nombre)
         if pais is not None:
             print(f"{letra.upper()} -> {pais.name}")
             paises.append(pais)
